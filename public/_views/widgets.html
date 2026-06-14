@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Widget Library - BlinkSite Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        [x-cloak] { display: none !important; }
+        .code-input { font-family: 'Consolas', 'Monaco', monospace; font-size: 12px; background: #1e1e1e; color: #d4d4d4; line-height: 1.5; }
+        iframe#previewFrame { background: white; width: 100%; height: 100%; border: none; }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-200" x-data="widgetApp()" x-init="init()" :class="darkMode ? 'dark' : ''">
+
+    <div class="flex h-screen overflow-hidden" x-cloak>
+        <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'" class="fixed inset-y-0 left-0 z-30 w-64 bg-white dark:bg-gray-800 border-r dark:border-gray-700 transition-transform duration-300 md:relative md:flex md:flex-col shadow-xl md:shadow-none">
+            <div class="h-16 flex items-center justify-center border-b dark:border-gray-700 shrink-0"><span class="text-xl font-black text-blue-600 tracking-tighter">BlinkSite</span></div>
+            <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+                <a href="/admin/dashboard" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"><i class="ph ph-squares-four text-xl"></i>Dashboard</a>
+                <a href="/admin/pages" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"><i class="ph ph-files text-xl"></i>Halaman</a>
+                <a href="/admin/widgets" class="flex items-center gap-3 px-3 py-3 rounded-lg bg-blue-600 text-white shadow-md"><i class="ph ph-puzzle-piece text-xl"></i>Widget Library</a>
+                <a href="/admin/settings" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"><i class="ph ph-gear text-xl"></i>Settings</a>
+            </nav>
+            <div class="p-4 border-t dark:border-gray-700 shrink-0">
+                <button @click="logout()" class="flex items-center gap-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 w-full p-2 rounded-lg transition-colors group"><i class="ph ph-sign-out text-xl"></i>Keluar</button>
+            </div>
+        </aside>
+
+        <div class="flex-1 flex flex-col min-w-0">
+            <header class="h-16 bg-white dark:bg-gray-800 border-b dark:border-gray-700 flex justify-between items-center px-4 shadow-sm z-20">
+                <div class="flex items-center gap-4">
+                    <button @click="sidebarOpen = !sidebarOpen" class="md:hidden p-2 rounded-lg hover:bg-gray-100"><i class="ph ph-list text-2xl dark:text-white"></i></button>
+                    <h1 class="font-bold text-lg truncate dark:text-white">Manajemen Widget (Database)</h1>
+                </div>
+                <button @click="toggleTheme()" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 border dark:border-gray-600"><i class="ph" :class="darkMode ? 'ph-sun' : 'ph-moon'"></i></button>
+            </header>
+
+            <main class="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-50 dark:bg-gray-900">
+                <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+                    <div class="relative w-full md:w-96">
+                        <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input type="text" x-model="search" placeholder="Cari widget..." class="w-full pl-10 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm dark:text-white shadow-sm">
+                    </div>
+                    <div class="flex gap-2">
+                        <button @click="clearCache()" class="px-4 py-2 bg-purple-100 text-purple-700 border border-purple-200 font-bold rounded-lg text-sm hover:bg-purple-200 transition flex items-center gap-2">
+                            <i class="ph ph-broom-fill"></i> Reset Cache
+                        </button>
+                        <button @click="injectFromCDN()" class="px-4 py-2 bg-amber-100 text-amber-700 border border-amber-200 font-bold rounded-lg text-sm hover:bg-amber-200 transition flex items-center gap-2">
+                            <i class="ph ph-cloud-arrow-down-fill"></i> Import dari JSON
+                        </button>
+                        <button @click="openModal()" class="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg text-sm shadow-lg hover:bg-blue-700 transition flex items-center gap-2">
+                            <i class="ph ph-plus-bold"></i> Tambah Manual
+                        </button>
+                    </div>
+                </div>
+
+                <div x-show="loading" class="text-center py-20">
+                    <i class="ph ph-spinner animate-spin text-4xl text-blue-600"></i>
+                    <p class="text-gray-500 mt-2 text-sm">Sinkronisasi Database...</p>
+                </div>
+
+                <div x-show="!loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <template x-for="widget in filteredWidgets" :key="widget.id">
+                        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition flex flex-col overflow-hidden group">
+                            <div class="p-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-start">
+                                <div>
+                                    <span class="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-100" x-text="widget.category"></span>
+                                    <h3 class="font-bold text-gray-800 dark:text-white mt-2" x-text="widget.label"></h3>
+                                    <p class="text-xs font-mono text-gray-400 mt-1" x-text="widget.id"></p>
+                                </div>
+                                <div class="text-gray-300"><i class="ph ph-cube text-2xl"></i></div>
+                            </div>
+                            <div class="p-4 flex-1 relative group-hover:bg-gray-50 transition">
+                                <div class="text-xs text-gray-500 dark:text-gray-400 line-clamp-3 font-mono bg-gray-100 dark:bg-gray-900 p-2 rounded border dark:border-gray-700 select-none" x-text="widget.content"></div>
+                                <div class="mt-2 flex gap-2">
+                                    <span x-show="widget.script" class="text-[10px] flex items-center gap-1 text-yellow-600 bg-yellow-50 px-2 py-0.5 rounded font-bold border border-yellow-200"><i class="ph ph-code"></i> Has Logic</span>
+                                </div>
+                            </div>
+                            <div class="p-3 bg-white dark:bg-gray-800 border-t dark:border-gray-700 flex gap-2">
+                                <button @click="openModal(widget)" class="flex-1 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded text-xs font-bold text-gray-700 dark:text-gray-200 hover:border-blue-500 hover:text-blue-600 transition">EDIT & PREVIEW</button>
+                                <button @click="deleteWidget(widget.id)" class="px-3 py-2 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900 rounded text-xs font-bold text-red-600 hover:bg-red-100 transition"><i class="ph ph-trash"></i></button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </main>
+        </div>
+
+        <div x-show="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm" x-cloak>
+            <div class="bg-white dark:bg-gray-800 w-full h-full md:h-[95vh] md:w-[95vw] md:rounded-2xl shadow-2xl flex flex-col overflow-hidden relative">
+                <div class="p-4 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900 shrink-0">
+                    <div class="flex items-center gap-4">
+                        <h3 class="font-bold text-lg dark:text-white" x-text="isEdit ? 'Edit Widget' : 'Buat Widget Baru'"></h3>
+                        <div class="flex gap-2">
+                            <input x-model="form.id" :disabled="isEdit" class="px-3 py-1 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded text-sm font-mono focus:border-blue-500 outline-none" placeholder="Widget ID">
+                            <input x-model="form.label" class="px-3 py-1 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded text-sm focus:border-blue-500 outline-none" placeholder="Label">
+                            <select x-model="form.category" class="px-3 py-1 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded text-sm focus:border-blue-500 outline-none">
+                                <option value="1. Header & Hero">1. Header & Hero</option>
+                                <option value="2. Features">2. Features</option>
+                                <option value="3. Content">3. Content</option>
+                                <option value="4. Commerce">4. Commerce</option>
+                                <option value="5. Footer">5. Footer</option>
+                                <option value="Custom">Custom</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex gap-3">
+                        <button @click="showModal = false" class="px-4 py-2 text-sm font-bold text-gray-500 hover:bg-gray-100 rounded">Tutup</button>
+                        <button @click="saveWidget()" class="px-6 py-2 bg-blue-600 text-white text-sm font-bold rounded hover:bg-blue-700 transition flex items-center gap-2"><i class="ph ph-floppy-disk"></i> <span x-text="isSaving ? 'Menyimpan...' : 'SIMPAN'"></span></button>
+                    </div>
+                </div>
+                <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
+                    <div class="w-full md:w-1/2 flex flex-col border-r dark:border-gray-700 bg-[#1e1e1e]">
+                        <div class="flex bg-[#252526] text-gray-400 text-xs font-bold border-b border-[#333]">
+                            <button @click="codeTab='html'" class="px-4 py-2 hover:bg-[#3e3e42] transition" :class="codeTab==='html' ? 'bg-[#1e1e1e] text-white border-t-2 border-blue-500' : ''">HTML</button>
+                            <button @click="codeTab='js'" class="px-4 py-2 hover:bg-[#3e3e42] transition" :class="codeTab==='js' ? 'bg-[#1e1e1e] text-white border-t-2 border-yellow-500' : ''">Javascript Logic</button>
+                        </div>
+                        <textarea x-show="codeTab==='html'" x-model="form.content" @input.debounce.500ms="renderPreview()" class="flex-1 w-full p-4 code-input outline-none resize-none" spellcheck="false" placeholder=""></textarea>
+                        <div x-show="codeTab==='js'" class="flex-1 flex flex-col">
+                            <div class="p-2 bg-yellow-900/20 text-yellow-200 text-[10px] border-b border-yellow-900/50 px-4"><i class="ph ph-warning"></i> Gunakan <code>this</code> untuk merujuk ke elemen.</div>
+                            <textarea x-model="form.script" @input.debounce.1000ms="renderPreview()" class="flex-1 w-full p-4 code-input outline-none resize-none" spellcheck="false" placeholder="// const btn = this.querySelector('button');"></textarea>
+                        </div>
+                    </div>
+                    <div class="w-full md:w-1/2 bg-gray-100 flex flex-col relative">
+                        <div class="bg-white border-b px-4 py-2 flex justify-between items-center text-xs font-bold text-gray-500 shadow-sm z-10"><span>LIVE PREVIEW</span><span class="bg-green-100 text-green-600 px-2 py-0.5 rounded">Tailwind Ready</span></div>
+                        <div class="flex-1 relative overflow-hidden bg-gray-200"><iframe id="previewFrame" class="w-full h-full absolute inset-0"></iframe></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function widgetApp() {
+            return {
+                sidebarOpen: window.innerWidth > 768,
+                darkMode: localStorage.getItem('theme') === 'dark',
+                loading: true,
+                isSaving: false,
+                search: '',
+                showModal: false,
+                isEdit: false,
+                codeTab: 'html', 
+                widgets: [],
+                form: { id: '', label: '', category: 'Custom', content: '', script: '', attributes: {} },
+
+                // --- BRIDGE CSS UNTUK PREVIEW ---
+                bridgeCSS: `
+                    body { font-family: 'Inter', sans-serif; padding: 20px; overflow-x: hidden; }
+                    .animate-marquee { display: inline-block; white-space: nowrap; animation: marquee 20s linear infinite; }
+                    @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+                    .editable-carousel { position: relative; width: 100%; overflow: hidden; aspect-ratio: 21/9; min-height: 200px; background: #eee; }
+                    .editable-carousel .slides { display: flex; width: 100%; height: 100%; transition: transform 0.5s ease-in-out; }
+                    .editable-carousel .slide { min-width: 100%; flex: 0 0 100%; position: relative; height: 100%; }
+                    .editable-carousel .slide img { width: 100%; height: 100%; object-fit: cover; }
+                    .editable-carousel .carousel-controls { position: absolute; inset: 0; display: flex; justify-content: space-between; align-items: center; padding: 0 1rem; pointer-events: none; }
+                    .editable-carousel .carousel-controls button { pointer-events: auto; background: rgba(0,0,0,0.5); color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border:none; }
+                    .countdown-number { font-weight: 900; }
+                `,
+
+                async init() {
+                    const token = localStorage.getItem('auth_token');
+                    if (this.darkMode) document.documentElement.classList.add('dark');
+                    await this.fetchWidgets();
+                    
+                    this.$watch('showModal', (val) => {
+                        if (val) setTimeout(() => this.renderPreview(), 100); 
+                    });
+                },
+
+                get filteredWidgets() {
+                    if (!this.search) return this.widgets;
+                    const q = this.search.toLowerCase();
+                    return this.widgets.filter(w => w.label.toLowerCase().includes(q) || w.category.toLowerCase().includes(q) || w.id.toLowerCase().includes(q));
+                },
+
+                async fetchWidgets() {
+                    this.loading = true;
+                    try {
+                        const res = await fetch('/api/widgets');
+                        if (res.ok) this.widgets = await res.json();
+                    } catch (e) { console.error(e); }
+                    this.loading = false;
+                },
+
+                // --- FUNGSI HAPUS CACHE KV ---
+                async clearCache() {
+                    const token = localStorage.getItem('auth_token');
+                    Swal.fire({ title: 'Membersihkan Cache KV...', didOpen: () => Swal.showLoading() });
+                    
+                    try {
+                        const res = await fetch('/api/admin/cache/widgets', {
+                            method: 'DELETE',
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+
+                        if(res.ok) {
+                            const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+                            Toast.fire({ icon: 'success', title: 'Cache WIDGET_CACHE diperbarui!' });
+                            await this.fetchWidgets();
+                        } else {
+                            throw new Error('Gagal akses endpoint cache');
+                        }
+                    } catch(e) {
+                        Swal.fire({ title: 'Gagal', text: e.message, icon: 'error' });
+                    }
+                },
+
+                // --- INJECT FROM CDN (EXTERNAL SOURCE) ---
+                async injectFromCDN() {
+                    const r = await Swal.fire({
+                        title: 'Import dari JSON?',
+                        text: "Akan mengambil data dari 'https://cdn.pasdigi.com/json/blocks.json' dan menimpa database.",
+                        icon: 'info',
+                        showCancelButton: true,
+                        confirmButtonText: 'Ya, Import!',
+                        confirmButtonColor: '#d97706'
+                    });
+
+                    if (r.isConfirmed) {
+                        Swal.fire({ title: 'Mengunduh & Memproses...', didOpen: () => Swal.showLoading() });
+                        
+                        try {
+                            const token = localStorage.getItem('auth_token');
+                            
+                            // 1. Fetch JSON dari CDN
+                            const cdnRes = await fetch('https://cdn.pasdigi.com/json/blocks.json');
+                            if(!cdnRes.ok) throw new Error('Gagal unduh JSON dari CDN');
+                            const externalWidgets = await cdnRes.json();
+
+                            // 2. Loop & Kirim ke DB
+                            let successCount = 0;
+                            for (const w of externalWidgets) {
+                                await fetch('/api/admin/widgets', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                    body: JSON.stringify(w)
+                                });
+                                successCount++;
+                            }
+
+                            await this.fetchWidgets();
+                            Swal.fire('Selesai', `${successCount} Widget berhasil di-import dari CDN!`, 'success');
+                        } catch (e) {
+                            Swal.fire('Gagal', e.message, 'error');
+                        }
+                    }
+                },
+
+                // --- RENDER PREVIEW ---
+                renderPreview() {
+                    const frame = document.getElementById('previewFrame');
+                    if (!frame) return;
+                    const doc = frame.contentWindow.document;
+                    const htmlCode = this.form.content || '<div class="flex items-center justify-center h-full text-gray-400">Mulai ketik HTML...</div>';
+                    
+                    let scriptInjection = '';
+                    if (this.form.script && this.form.script.trim() !== '') {
+                        scriptInjection = `<script>document.addEventListener("DOMContentLoaded", function() { try { const el = document.body.firstElementChild; if(el) { (function() { ${this.form.script} }).call(el); } } catch(e) { console.error("Widget Script Error:", e); } });<\/script>`;
+                    }
+
+                    const fullHTML = `<!DOCTYPE html><html><head><meta charset="UTF-8"><script src="https://cdn.tailwindcss.com"><\/script><script>tailwind.config = { theme: { extend: { colors: { theme: { 50:'#eef2ff', 600:'#4f46e5' } }, fontFamily: { sans: ['Inter', 'sans-serif'] } } } }<\/script><script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"><\/script><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"><style>${this.bridgeCSS}</style></head><body>${htmlCode}${scriptInjection}</body></html>`;
+
+                    doc.open();
+                    doc.write(fullHTML);
+                    doc.close();
+                },
+
+                openModal(widget = null) {
+                    this.codeTab = 'html';
+                    if (widget) {
+                        this.isEdit = true;
+                        this.form = JSON.parse(JSON.stringify(widget));
+                    } else {
+                        this.isEdit = false;
+                        this.form = { id: 'widget-' + Date.now(), label: '', category: 'Custom', content: '<section class="p-10 text-center">\n  <h2 class="text-2xl font-bold">Judul Baru</h2>\n</section>', script: '', attributes: {} };
+                    }
+                    this.showModal = true;
+                },
+
+                async saveWidget() {
+                    if (!this.form.id || !this.form.content) return Swal.fire('Error', 'ID dan Content wajib diisi!', 'warning');
+                    this.isSaving = true;
+                    try {
+                        const token = localStorage.getItem('auth_token');
+                        const res = await fetch('/api/admin/widgets', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                            body: JSON.stringify(this.form)
+                        });
+                        if (res.ok) {
+                            this.showModal = false;
+                            await this.fetchWidgets();
+                            const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+                            Toast.fire({ icon: 'success', title: 'Widget berhasil disimpan' });
+                        } else throw new Error('Gagal menyimpan');
+                    } catch (e) { Swal.fire('Error', e.message, 'error'); }
+                    this.isSaving = false;
+                },
+
+                async deleteWidget(id) {
+                    const result = await Swal.fire({ title: 'Hapus Widget?', text: "Data akan dihapus permanen.", icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'Ya, Hapus!' });
+                    if (result.isConfirmed) {
+                        try {
+                            const token = localStorage.getItem('auth_token');
+                            await fetch(`/api/admin/widgets/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+                            await this.fetchWidgets();
+                        } catch (e) { Swal.fire('Error', 'Gagal menghapus', 'error'); }
+                    }
+                },
+
+                toggleTheme() {
+                    this.darkMode = !this.darkMode;
+                    localStorage.setItem('theme', this.darkMode ? 'dark' : 'light');
+                    if (this.darkMode) document.documentElement.classList.add('dark'); else document.documentElement.classList.remove('dark');
+                },
+
+                logout() {
+                    if (confirm('Keluar?')) { localStorage.removeItem('auth_token'); window.location.href = '/login'; }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
