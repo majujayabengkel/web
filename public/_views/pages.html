@@ -188,7 +188,8 @@
                 newPage: { slug: '', title: '', pageType: 'normal' },
 
                 async init() {
-                    const token = localStorage.getItem('admin_pass');
+                    // MENGGUNAKAN FALLBACK TOKEN SAMA SEPERTI DASHBOARD
+                    const token = localStorage.getItem('admin_pass') || localStorage.getItem('auth_token');
                     if (!token) return window.location.href = '/login';
                     if (this.darkMode) document.documentElement.classList.add('dark');
 
@@ -200,6 +201,8 @@
                         ]);
                         
                         if(resPages.ok) this.pages = await resPages.json();
+                        else if (resPages.status === 401) window.location.href = '/login';
+
                         if(resHome.ok) {
                             const data = await resHome.json();
                             this.homepageSlug = data.slug;
@@ -208,7 +211,6 @@
                     this.loading = false;
                 },
 
-                // LOGIC PENYESUAIAN SLUG OTOMATIS BERDASARKAN TIPE HALAMAN
                 generateSlug() {
                     let baseSlug = this.newPage.title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-');
                     
@@ -217,7 +219,6 @@
                             baseSlug = 'portofolio-' + baseSlug;
                         }
                     } else {
-                        // Jika diubah kembali ke normal, hapus prefiksnya
                         if (baseSlug.startsWith('portofolio-')) {
                             baseSlug = baseSlug.replace('portofolio-', '');
                         }
@@ -228,7 +229,7 @@
 
                 async setHomepage(slug) {
                     if(!confirm('Set sebagai homepage?')) return;
-                    const token = localStorage.getItem('admin_pass');
+                    const token = localStorage.getItem('admin_pass') || localStorage.getItem('auth_token');
                     const res = await fetch('/api/admin/set-homepage', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -240,7 +241,7 @@
                 async deletePage(id) {
                     if(!confirm('Yakin ingin menghapus halaman ini selamanya? Tindakan ini tidak bisa dibatalkan.')) return;
                     
-                    const token = localStorage.getItem('admin_pass');
+                    const token = localStorage.getItem('admin_pass') || localStorage.getItem('auth_token');
                     try {
                         const res = await fetch(`/api/admin/pages/${id}`, {
                             method: 'DELETE',
@@ -261,7 +262,7 @@
                 async createPage() {
                     if(!this.newPage.title) return;
                     this.creating = true;
-                    const token = localStorage.getItem('admin_pass');
+                    const token = localStorage.getItem('admin_pass') || localStorage.getItem('auth_token');
                     
                     const res = await fetch('/api/admin/pages', {
                         method: 'POST',
@@ -269,7 +270,7 @@
                         body: JSON.stringify({
                             slug: this.newPage.slug,
                             title: this.newPage.title,
-                            product_type: 'digital', // SELALU DI-SET DIGITAL SECARA OTOMATIS
+                            product_type: 'digital',
                             html: '<section style="padding:50px; text-align:center"><h1>' + this.newPage.title + '</h1></section>',
                             css: '',
                             product_config: { variants: [] }
@@ -287,8 +288,14 @@
                 },
 
                 logout() {
-                    localStorage.removeItem('admin_pass');
-                    window.location.href = '/login';
+                    if (confirm('Keluar dari dashboard?')) {
+                        // MENGHAPUS SEMUA TOKEN DAN MEMANGGIL API LOGOUT
+                        localStorage.removeItem('admin_pass');
+                        localStorage.removeItem('auth_token');
+                        fetch('/api/logout').finally(() => {
+                            window.location.href = '/login';
+                        });
+                    }
                 }
             }
         }
