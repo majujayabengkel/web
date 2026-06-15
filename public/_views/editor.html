@@ -551,24 +551,137 @@
 
                 tm.addType('file-upload', {
                     createInput({ trait }) {
-                        const div = document.createElement('div'); div.style.width = '100%';
-                        const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*'; input.style.display = 'none';
-                        const btn = document.createElement('button'); btn.className = 'trait-custom-btn'; btn.innerHTML = '<i class="ph ph-upload-simple"></i> UPLOAD GAMBAR';
+                        const div = document.createElement('div'); 
+                        div.style.width = '100%';
+                        div.style.display = 'flex';
+                        div.style.flexDirection = 'column';
+                        div.style.gap = '8px';
+
+                        const currentValue = trait.getValue();
+
+                        // 1. KOTAK PREVIEW GAMBAR
+                        const previewWrapper = document.createElement('div');
+                        previewWrapper.style.width = '100%';
+                        previewWrapper.style.height = '120px';
+                        previewWrapper.style.backgroundColor = '#f1f5f9';
+                        previewWrapper.style.border = '1px dashed #cbd5e1';
+                        previewWrapper.style.borderRadius = '6px';
+                        previewWrapper.style.overflow = 'hidden';
+                        previewWrapper.style.display = (currentValue && currentValue.trim() !== '') ? 'block' : 'none';
+
+                        const previewImg = document.createElement('img');
+                        previewImg.style.width = '100%';
+                        previewImg.style.height = '100%';
+                        previewImg.style.objectFit = 'contain'; 
+                        previewImg.src = currentValue || '';
+                        previewWrapper.appendChild(previewImg);
+
+                        // 2. INPUT FILE (Sembunyi)
+                        const input = document.createElement('input'); 
+                        input.type = 'file'; 
+                        input.accept = 'image/*'; 
+                        input.style.display = 'none';
+                        
+                        // 3. TOMBOL UPLOAD / GANTI
+                        const btn = document.createElement('button'); 
+                        btn.className = 'trait-custom-btn'; 
+                        btn.innerHTML = (currentValue && currentValue.trim() !== '') 
+                            ? '<i class="ph ph-arrows-clockwise"></i> GANTI GAMBAR' 
+                            : '<i class="ph ph-upload-simple"></i> UPLOAD GAMBAR';
+
+                        // 4. TOMBOL HAPUS (MERAH)
+                        const removeBtn = document.createElement('button');
+                        removeBtn.className = 'trait-custom-btn';
+                        removeBtn.style.backgroundColor = '#ef4444';
+                        removeBtn.innerHTML = '<i class="ph ph-trash"></i> KOSONGKAN SLOT';
+                        removeBtn.style.display = (currentValue && currentValue.trim() !== '') ? 'flex' : 'none';
+
+                        // AKSI KETIKA TOMBOL UPLOAD DIKLIK
                         btn.onclick = () => input.click();
                         input.onchange = () => {
                             const file = input.files[0]; if(!file) return;
                             const reader = new FileReader(); reader.readAsDataURL(file);
                             reader.onloadend = async () => {
-                                const originalText = btn.innerHTML; btn.innerHTML = 'UPLOADING...'; btn.disabled = true;
-                                const formData = new FormData(); formData.append('file', reader.result); formData.append('filename', file.name);
+                                const originalText = btn.innerHTML; 
+                                btn.innerHTML = 'UPLOADING...'; 
+                                btn.disabled = true; removeBtn.disabled = true;
+                                
+                                const formData = new FormData(); 
+                                formData.append('file', reader.result); 
+                                formData.append('filename', file.name);
+                                
                                 try {
-                                    const res = await fetch('/api/admin/upload-image', { method: 'POST', body: formData }); const json = await res.json();
+                                    const res = await fetch('/api/admin/upload-image', { method: 'POST', body: formData }); 
+                                    const json = await res.json();
                                     const url = json.data ? json.data[0].src : (json.url || json.secure_url);
-                                    if(url) { trait.setValue(url); trait.target.addAttributes({ [trait.get('name')]: url }); if(trait.target.get('tagName') === 'img') { trait.target.set('src', url); } } else { alert('Gagal mendapatkan URL gambar'); }
-                                } catch(err) { alert('Upload Gagal: ' + err.message); } finally { btn.innerHTML = originalText; btn.disabled = false; }
+                                    if(url) { 
+                                        // Masukkan URL ke GrapesJS
+                                        trait.setValue(url); 
+                                        trait.target.addAttributes({ [trait.get('name')]: url }); 
+                                        
+                                        // Update Tampilan (Munculkan Preview & Tombol Hapus)
+                                        previewImg.src = url;
+                                        previewWrapper.style.display = 'block';
+                                        btn.innerHTML = '<i class="ph ph-arrows-clockwise"></i> GANTI GAMBAR';
+                                        removeBtn.style.display = 'flex';
+
+                                        if(trait.target.get('tagName') === 'img') { 
+                                            trait.target.set('src', url); 
+                                        } 
+                                    } else { 
+                                        alert('Gagal mendapatkan URL gambar'); 
+                                    }
+                                } catch(err) { 
+                                    alert('Upload Gagal: ' + err.message); 
+                                } finally { 
+                                    if(btn.innerHTML === 'UPLOADING...') btn.innerHTML = originalText; 
+                                    btn.disabled = false; removeBtn.disabled = false;
+                                    input.value = ''; 
+                                }
                             };
                         };
-                        div.appendChild(btn); div.appendChild(input); return div;
+
+                        // AKSI KETIKA TOMBOL HAPUS DIKLIK
+                        removeBtn.onclick = () => {
+                            // Kosongkan value dari memori GrapesJS
+                            trait.setValue(''); 
+                            trait.target.addAttributes({ [trait.get('name')]: '' });
+                            if(trait.target.get('tagName') === 'img') trait.target.set('src', '');
+                            
+                            // Hilangkan Preview dan sembunyikan tombol Hapus
+                            previewImg.src = '';
+                            previewWrapper.style.display = 'none';
+                            btn.innerHTML = '<i class="ph ph-upload-simple"></i> UPLOAD GAMBAR';
+                            removeBtn.style.display = 'none';
+                        };
+
+                        div.appendChild(previewWrapper);
+                        div.appendChild(btn); 
+                        div.appendChild(input); 
+                        div.appendChild(removeBtn);
+                        
+                        return div;
+                    },
+                    
+                    // MENJAGA SINKRONISASI SAAT PINDAH-PINDAH WIDGET
+                    onUpdate({ elInput, trait }) {
+                        const currentValue = trait.getValue();
+                        const previewWrapper = elInput.children[0];
+                        const previewImg = previewWrapper.querySelector('img');
+                        const btn = elInput.children[1];
+                        const removeBtn = elInput.children[3];
+                        
+                        if (currentValue && currentValue.trim() !== '') {
+                            previewImg.src = currentValue;
+                            previewWrapper.style.display = 'block';
+                            btn.innerHTML = '<i class="ph ph-arrows-clockwise"></i> GANTI GAMBAR';
+                            removeBtn.style.display = 'flex';
+                        } else {
+                            previewImg.src = '';
+                            previewWrapper.style.display = 'none';
+                            btn.innerHTML = '<i class="ph ph-upload-simple"></i> UPLOAD GAMBAR';
+                            removeBtn.style.display = 'none';
+                        }
                     }
                 });
 
