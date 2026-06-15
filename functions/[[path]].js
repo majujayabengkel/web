@@ -199,8 +199,6 @@ app.post('/api/admin/change-password', async (c) => {
     try {
         const body = await c.req.json();
         const user = c.get('user');
-        
-        // Pastikan sesi user ID masih ada (jika token kadaluarsa bentuk lama)
         if (!user || !user.id) return c.json({ success: false, message: 'Sesi tidak valid, harap login ulang' }, 401);
         
         const userId = parseInt(user.id, 10);
@@ -260,15 +258,10 @@ app.get('/api/admin/pages/:slug', async (c) => {
 app.delete('/api/admin/pages/:id', async (c) => {
     try { 
         const id = Number(c.req.param('id'));
-        
-        // 1. Hapus data relasi terlebih dahulu (Solusi Foreign Key Constraint)
         await c.env.DB.prepare("DELETE FROM analytics WHERE page_id = ?").bind(id).run();
         await c.env.DB.prepare("DELETE FROM transactions WHERE page_id = ?").bind(id).run();
         await c.env.DB.prepare("DELETE FROM messages WHERE page_id = ?").bind(id).run();
-        
-        // 2. Setelah data anak bersih, baru hapus halaman utama
         await c.env.DB.prepare("DELETE FROM pages WHERE id = ?").bind(id).run(); 
-        
         return c.json({ success: true }); 
     } catch (e) { 
         return c.json({ error: e.message }, 500); 
@@ -360,6 +353,17 @@ app.post('/api/admin/templates', async (c) => {
 app.delete('/api/admin/templates', async (c) => { const t = c.req.query('type') === 'shipping' ? 'shipping_templates' : 'payment_templates'; await c.env.DB.prepare(`DELETE FROM ${t} WHERE slug = ?`).bind(c.req.query('slug')).run(); return c.json({ success: true }); });
 
 // --- PUBLIC API ---
+
+// ENDPOINT MENGAMBIL DATA PORTOFOLIO DARI DATABASE
+app.get('/api/public/portfolios', async (c) => {
+    try {
+        const r = await c.env.DB.prepare("SELECT slug, title, product_config_json, created_at FROM pages WHERE slug LIKE 'portofolio-%' ORDER BY created_at DESC").all();
+        return c.json({ success: true, data: r.results });
+    } catch (e) { 
+        return c.json({ success: false, error: e.message }, 500); 
+    }
+});
+
 app.post('/api/public/contact', async (c) => {
     try {
         await initDB(c.env.DB);
@@ -394,16 +398,6 @@ app.post('/api/public/checkout', async (c) => {
     } catch (e) { return c.json({ error: "Gagal: " + e.message }, 500); }
 });
 
-app.get('/api/public/portfolios', async (c) => {
-    try {
-        // Ambil SEMUA halaman yang slug-nya berawalan "portofolio-"
-        const r = await c.env.DB.prepare("SELECT slug, title, product_config_json, created_at FROM pages WHERE slug LIKE 'portofolio-%' ORDER BY created_at DESC").all();
-        
-        return c.json({ success: true, data: r.results });
-    } catch (e) { 
-        return c.json({ success: false, error: e.message }, 500); 
-    }
-});
 // ===============================================
 // 7. PUBLIC PAGE RENDERING (FIXED)
 // ===============================================
@@ -412,7 +406,6 @@ async function renderPage(c, page) {
     const bridgeCSS = `body { min-height: 100vh; background-color: #ffffff; overflow-x: hidden; font-family: 'Inter', sans-serif; } .swal2-container { z-index: 99999 !important; } [x-cloak] { display: none !important; }`;
     const tailwindConfig = `tailwind.config = { darkMode: 'class', theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] }, colors: { theme: { 50:'#eef2ff', 600:'#4f46e5' } } } } }`;
 
-    // 1. AMBIL SCRIPT WIDGET DARI DB
     let widgetScripts = '';
     try {
         const widgets = await widgetModule.getWidgets(c.env);
@@ -443,12 +436,9 @@ async function renderPage(c, page) {
         console.error("Failed to inject widget scripts:", e);
     }
 
-    // 3. Script Sistem (Checkout, dll)
     const systemScripts = `
     <script>
         window.BS_DATA = ${JSON.stringify({ page_id: page.id, title: page.title, config: config, active_payments: config.active_payments || [] })};
-        
-        // Checkout Logic Sederhana
         document.addEventListener('DOMContentLoaded', () => {
             if (document.body.innerHTML.includes('[ CHECKOUT ]')) {
                 console.log("Checkout module loaded");
@@ -457,7 +447,6 @@ async function renderPage(c, page) {
     </script>
     `;
 
-    // 4. Gabungkan Content
     let content = page.html_content || '';
     const finalScripts = `${widgetScripts}${systemScripts}`;
     if (content.includes('<body')) {
@@ -473,7 +462,6 @@ async function renderPage(c, page) {
         <meta charset='UTF-8'>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${page.title}</title>
-        <link rel="icon" href="/favicon.png">
         <script src="https://cdn.tailwindcss.com"></script>
         <script>${tailwindConfig}</script>
         <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -486,6 +474,7 @@ async function renderPage(c, page) {
     </html>
     `);
 }
+
 // --- ANALYTICS JOB ---
 async function runAnalyticsRekap(env) {
     try {
