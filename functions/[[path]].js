@@ -506,7 +506,7 @@ async function renderPage(c, page) {
           <a href="/#home" class="text-sm font-medium hover:text-indigo-600 text-gray-600">Home</a>
           <a href="/#tentang" class="text-sm font-medium hover:text-indigo-600 text-gray-600">Tentang</a>
           <a href="/#klien" class="text-sm font-medium hover:text-indigo-600 text-gray-600">Klien</a>
-          <a href="/#layanan" class="text-sm font-medium hover:text-indigo-600 text-gray-600">Layanan</a>
+          <a href="/#service" class="text-sm font-medium hover:text-indigo-600 text-gray-600">Layanan</a>
           <a href="/#portfolio" class="text-sm font-medium hover:text-indigo-600 text-gray-600">Portfolio</a>
           <a href="/#testimonial" class="text-sm font-medium hover:text-indigo-600 text-gray-600">Testimonial</a>
           <a href="/#kontak" class="text-sm font-medium hover:text-indigo-600 text-gray-600">Kontak</a>
@@ -547,6 +547,19 @@ async function renderPage(c, page) {
             <p style="font-size: 12px; color: #64748b;">&copy; ${currentYear} ${siteName}. Hak Cipta Dilindungi.</p>
         </div>
     </footer>
+
+    <!-- 3. TOMBOL MENGAMBANG (DIPISAH KANAN & KIRI) -->
+    
+    <!-- WhatsApp (Tetap di Kanan Bawah) -->
+    <a href="https://wa.me/${cleanWa}" target="_blank" style="position:fixed; bottom:24px; right:24px; z-index:99999; background-color:#25D366; color:white; width:56px; height:56px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1); transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+        <iconify-icon icon="ph:whatsapp-logo-fill" style="font-size: 36px;"></iconify-icon>
+    </a>
+
+    <!-- Back to Top (Dipindah ke Kiri Bawah, Sejajar dengan WA) -->
+    <button id="back-to-top" style="position:fixed; bottom:28px; left:24px; z-index:99998; background-color:#4f46e5; color:white; width:48px; height:48px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1); border:none; cursor:pointer; opacity:0; pointer-events:none; transition:opacity 0.3s, transform 0.2s;" onclick="window.scrollTo({top:0, behavior:'smooth'})" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+        <iconify-icon icon="ph:caret-up-bold" style="font-size: 24px;"></iconify-icon>
+    </button>
+    `;
 
     <a href="https://wa.me/${cleanWa}" target="_blank" style="position:fixed; bottom:24px; right:24px; z-index:99999; background-color:#25D366; color:white; width:56px; height:56px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1); transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
         <iconify-icon icon="ph:whatsapp-logo-fill" style="font-size: 36px;"></iconify-icon>
