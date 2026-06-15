@@ -236,6 +236,7 @@ app.post('/api/admin/upload-image', uploadImage);
 app.get('/api/admin/homepage-slug', async (c) => {
     try { const s = await c.env.DB.prepare("SELECT value FROM settings WHERE key='homepage_slug'").first(); return c.json({ slug: s?.value || null }); } catch (e) { return c.json({ error: e.message }, 500); }
 });
+
 app.post('/api/admin/set-homepage', async (c) => {
     try {
         const { slug } = await c.req.json();
@@ -243,6 +244,30 @@ app.post('/api/admin/set-homepage', async (c) => {
         return c.json({ success: true });
     } catch (e) { return c.json({ error: e.message }, 500); }
 });
+
+// >>> PENAMBAHAN ENDPOINT BARU UNTUK SETTINGS (Nama Website, Logo, WA) <<<
+app.get('/api/admin/settings', async (c) => {
+    try {
+        const r = await c.env.DB.prepare("SELECT key, value FROM settings").all();
+        const config = {};
+        if (r.results) r.results.forEach(row => { config[row.key] = row.value; });
+        return c.json(config);
+    } catch (e) { return c.json({ error: e.message }, 500); }
+});
+
+app.post('/api/admin/settings', async (c) => {
+    try {
+        const data = await c.req.json();
+        const stmts = [];
+        for (const [key, value] of Object.entries(data)) {
+            stmts.push(c.env.DB.prepare("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").bind(key, String(value)));
+        }
+        if (stmts.length) await c.env.DB.batch(stmts);
+        return c.json({ success: true });
+    } catch (e) { return c.json({ error: e.message }, 500); }
+});
+// >>> AKHIR PENAMBAHAN <<<
+
 app.get('/api/admin/pages', async (c) => { const r = await c.env.DB.prepare("SELECT id, slug, title, product_type, created_at FROM pages ORDER BY created_at DESC").all(); return c.json(r.results); });
 app.post('/api/admin/pages', async (c) => {
     const { slug, title, html, css, product_config, product_type } = await c.req.json();
