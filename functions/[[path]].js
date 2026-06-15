@@ -449,7 +449,6 @@ app.post('/api/public/checkout', async (c) => {
 // ===============================================
 async function renderPage(c, page) {
     const config = JSON.parse(page.product_config_json || '{}');
-    // Tambahan 'html { scroll-behavior: smooth; }' agar scroll kembali ke atas jadi halus
     const bridgeCSS = `body { min-height: 100vh; display: flex; flex-direction: column; background-color: #ffffff; overflow-x: hidden; font-family: 'Inter', sans-serif; } .swal2-container { z-index: 99999 !important; } [x-cloak] { display: none !important; } html { scroll-behavior: smooth; }`;
     const tailwindConfig = `tailwind.config = { darkMode: 'class', theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] }, colors: { theme: { 50:'#eef2ff', 600:'#4f46e5' } } } } }`;
 
@@ -496,7 +495,6 @@ async function renderPage(c, page) {
     const logoHtml = siteLogo ? `<img src="${siteLogo}" alt="${siteName}" style="max-height: 40px; width: auto; object-fit: contain;">` : siteName;
     const currentYear = new Date().getFullYear();
 
-    // 1. PERBAIKAN HEADER & MOBILE MENU
     const globalHeader = `
     <header style="position:sticky;top:0;z-index:9999;background:rgba(255,255,255,0.95);backdrop-filter:blur(10px);border-bottom:1px solid #f1f5f9;">
       <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between relative">
@@ -506,7 +504,7 @@ async function renderPage(c, page) {
           <a href="/#home" class="text-sm font-medium hover:text-indigo-600 text-gray-600">Home</a>
           <a href="/#tentang" class="text-sm font-medium hover:text-indigo-600 text-gray-600">Tentang</a>
           <a href="/#klien" class="text-sm font-medium hover:text-indigo-600 text-gray-600">Klien</a>
-          <a href="/#service" class="text-sm font-medium hover:text-indigo-600 text-gray-600">Layanan</a>
+          <a href="/#services" class="text-sm font-medium hover:text-indigo-600 text-gray-600">Layanan</a>
           <a href="/#portfolio" class="text-sm font-medium hover:text-indigo-600 text-gray-600">Portfolio</a>
           <a href="/#testimonial" class="text-sm font-medium hover:text-indigo-600 text-gray-600">Testimonial</a>
           <a href="/#kontak" class="text-sm font-medium hover:text-indigo-600 text-gray-600">Kontak</a>
@@ -536,7 +534,7 @@ async function renderPage(c, page) {
     </header>
     `;
 
-    // 2. PERBAIKAN LOGO FOOTER (DIBUNGKUS FLEXBOX AGAR PRESISI DI TENGAH)
+    // SATU BLOK KESATUAN TANPA TERPUTUS
     const globalFooter = `
     <footer style="background-color:#1e293b; color:#94a3b8; padding: 40px 20px; text-align:center; border-top: 1px solid #334155; margin-top: auto;">
         <div style="max-width: 1200px; margin: 0 auto;">
@@ -548,35 +546,20 @@ async function renderPage(c, page) {
         </div>
     </footer>
 
-    <!-- 3. TOMBOL MENGAMBANG (DIPISAH KANAN & KIRI) -->
-    
-    <!-- WhatsApp (Tetap di Kanan Bawah) -->
     <a href="https://wa.me/${cleanWa}" target="_blank" style="position:fixed; bottom:24px; right:24px; z-index:99999; background-color:#25D366; color:white; width:56px; height:56px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1); transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
         <iconify-icon icon="ph:whatsapp-logo-fill" style="font-size: 36px;"></iconify-icon>
     </a>
 
-    <!-- Back to Top (Dipindah ke Kiri Bawah, Sejajar dengan WA) -->
     <button id="back-to-top" style="position:fixed; bottom:28px; left:24px; z-index:99998; background-color:#4f46e5; color:white; width:48px; height:48px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1); border:none; cursor:pointer; opacity:0; pointer-events:none; transition:opacity 0.3s, transform 0.2s;" onclick="window.scrollTo({top:0, behavior:'smooth'})" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
         <iconify-icon icon="ph:caret-up-bold" style="font-size: 24px;"></iconify-icon>
     </button>
     `;
 
-    <a href="https://wa.me/${cleanWa}" target="_blank" style="position:fixed; bottom:24px; right:24px; z-index:99999; background-color:#25D366; color:white; width:56px; height:56px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1); transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
-        <iconify-icon icon="ph:whatsapp-logo-fill" style="font-size: 36px;"></iconify-icon>
-    </a>
-
-    <button id="back-to-top" style="position:fixed; bottom:96px; right:24px; z-index:99998; background-color:#4f46e5; color:white; width:48px; height:48px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1); border:none; cursor:pointer; opacity:0; pointer-events:none; transition:opacity 0.3s, transform 0.2s;" onclick="window.scrollTo({top:0, behavior:'smooth'})" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
-        <iconify-icon icon="ph:caret-up-bold" style="font-size: 24px;"></iconify-icon>
-    </button>
-    `;
-
-    // 4. SCRIPT LOGIKA UNTUK MENU MOBILE & BACK TO TOP
     const systemScripts = `
     <script>
         window.BS_DATA = ${JSON.stringify({ page_id: page.id, title: page.title, config: config, active_payments: config.active_payments || [] })};
         
         document.addEventListener("DOMContentLoaded", function() {
-            // Logika Buka/Tutup Menu Mobile
             const btn = document.getElementById('mobile-menu-btn');
             const menu = document.getElementById('mobile-menu');
             if(btn && menu) {
@@ -591,7 +574,6 @@ async function renderPage(c, page) {
                 });
             }
 
-            // Logika Muncul/Hilang Tombol Back to Top
             const backToTop = document.getElementById('back-to-top');
             if(backToTop) {
                 window.addEventListener('scroll', function() {
