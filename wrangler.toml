@@ -4,12 +4,12 @@ compatibility_date = "2024-02-05"
 
 [[d1_databases]]
 binding = "DB" # PENTING: Nama binding harus "DB" agar cocok dengan kode (c.env.DB)
-database_name = "serverless"
-database_id = "5d901eee-4b95-42be-a50d-ca85aec07ee8"
+database_name = "bengkel"
+database_id = "e73d5d93-b536-4efa-9dde-0dad225ddce5"
 
 [[kv_namespaces]]
 binding = "WIDGET_CACHE"
-id = "5d6d5ef1775c4d6eb6d40e57cb9142b0"
+id = "93dda7d841544120bcb6c0926bdc87ca"
 
 [[analytics_engine_datasets]]
 binding = "ANALYTICS_ENGINE"
