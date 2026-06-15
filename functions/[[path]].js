@@ -420,11 +420,11 @@ app.post('/api/public/checkout', async (c) => {
 });
 
 // ===============================================
-// 7. PUBLIC PAGE RENDERING (FIXED)
+// 7. PUBLIC PAGE RENDERING (DYNAMIC SSR)
 // ===============================================
 async function renderPage(c, page) {
     const config = JSON.parse(page.product_config_json || '{}');
-    const bridgeCSS = `body { min-height: 100vh; background-color: #ffffff; overflow-x: hidden; font-family: 'Inter', sans-serif; } .swal2-container { z-index: 99999 !important; } [x-cloak] { display: none !important; }`;
+    const bridgeCSS = `body { min-height: 100vh; display: flex; flex-direction: column; background-color: #ffffff; overflow-x: hidden; font-family: 'Inter', sans-serif; } .swal2-container { z-index: 99999 !important; } [x-cloak] { display: none !important; }`;
     const tailwindConfig = `tailwind.config = { darkMode: 'class', theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] }, colors: { theme: { 50:'#eef2ff', 600:'#4f46e5' } } } } }`;
 
     let widgetScripts = '';
@@ -444,36 +444,86 @@ async function renderPage(c, page) {
                     components.forEach(el => {
                         const type = el.getAttribute('data-widget-type');
                         if (widgetRegistry[type]) {
-                            try {
-                                widgetRegistry[type].call(el);
-                            } catch(e) { console.error("Widget Error ["+type+"]:", e); }
+                            try { widgetRegistry[type].call(el); } catch(e) { console.error(e); }
                         }
                     });
                 });
             })();
         </script>
         `;
-    } catch(e) {
-        console.error("Failed to inject widget scripts:", e);
-    }
+    } catch(e) { console.error(e); }
 
     const systemScripts = `
     <script>
         window.BS_DATA = ${JSON.stringify({ page_id: page.id, title: page.title, config: config, active_payments: config.active_payments || [] })};
-        document.addEventListener('DOMContentLoaded', () => {
-            if (document.body.innerHTML.includes('[ CHECKOUT ]')) {
-                console.log("Checkout module loaded");
-            }
-        });
     </script>
+    `;
+
+    // ===============================================
+    // AMBIL DATA DINAMIS DARI TABEL SETTINGS
+    // ===============================================
+    let globalSettings = {};
+    try {
+        const res = await c.env.DB.prepare("SELECT key, value FROM settings").all();
+        if (res && res.results) {
+            res.results.forEach(row => { globalSettings[row.key] = row.value; });
+        }
+    } catch (e) { console.error("Gagal load settings:", e); }
+
+    // Ambil nilai dari database, berikan fallback jika di database masih kosong
+    const siteName = globalSettings['site_name'] || 'BRAND.';
+    const siteLogo = globalSettings['site_logo'] || ''; 
+    const siteWa = globalSettings['site_wa'] || '6281234567890';
+    const siteDesc = globalSettings['site_desc'] || 'Memberikan solusi terbaik untuk kebutuhan Anda dengan kualitas terjamin.';
+    
+    // Pastikan URL WhatsApp bersih dari spasi, tanda +, atau karakter aneh
+    const cleanWa = siteWa.replace(/[^0-9]/g, '');
+    
+    // Jika ada logo, tampilkan gambar. Jika tidak ada, tampilkan teks siteName
+    const logoHtml = siteLogo ? `<img src="${siteLogo}" alt="${siteName}" style="max-height: 40px; width: auto; object-fit: contain;">` : siteName;
+    const currentYear = new Date().getFullYear();
+
+    // ===============================================
+    // HEADER & FOOTER GLOBAL SUNTIKAN BACKEND
+    // ===============================================
+    const globalHeader = `
+    <header style="position:sticky;top:0;z-index:9999;background:rgba(255,255,255,0.95);backdrop-filter:blur(10px);border-bottom:1px solid #f1f5f9;">
+      <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+        <div class="font-bold text-2xl text-indigo-600 tracking-tighter"><a href="/">${logoHtml}</a></div>
+        <nav class="hidden md:flex gap-6">
+          <a href="/#home" class="text-sm font-medium hover:text-indigo-600 text-gray-600">Home</a>
+          <a href="/#tentang" class="text-sm font-medium hover:text-indigo-600 text-gray-600">Tentang</a>
+          <a href="/#klien" class="text-sm font-medium hover:text-indigo-600 text-gray-600">Klien</a>
+          <a href="/#layanan" class="text-sm font-medium hover:text-indigo-600 text-gray-600">Layanan</a>
+          <a href="/#portfolio" class="text-sm font-medium hover:text-indigo-600 text-gray-600">Portfolio</a>
+          <a href="/#testimonial" class="text-sm font-medium hover:text-indigo-600 text-gray-600">Testimonial</a>
+          <a href="/#kontak" class="text-sm font-medium hover:text-indigo-600 text-gray-600">Kontak</a>
+        </nav>
+        <a href="https://wa.me/${cleanWa}" target="_blank" class="bg-indigo-600 text-white text-sm font-bold rounded-full px-6 py-2 hover:bg-indigo-700 transition">PESAN SEKARANG</a>
+      </div>
+    </header>
+    `;
+
+    const globalFooter = `
+    <footer style="background-color:#1e293b; color:#94a3b8; padding: 40px 20px; text-align:center; border-top: 1px solid #334155; margin-top: auto;">
+        <div style="max-width: 1200px; margin: 0 auto;">
+            <div style="color:#fff; font-size: 24px; font-weight: bold; margin-bottom: 15px; letter-spacing: -1px;">
+                <a href="/" style="color:#fff; text-decoration:none;">${logoHtml}</a>
+            </div>
+            <p style="margin-bottom: 20px; font-size: 14px; max-width: 600px; margin-left: auto; margin-right: auto;">${siteDesc}</p>
+            <p style="font-size: 12px; color: #64748b;">&copy; ${currentYear} ${siteName}. Hak Cipta Dilindungi.</p>
+        </div>
+    </footer>
     `;
 
     let content = page.html_content || '';
     const finalScripts = `${widgetScripts}${systemScripts}`;
+    
     if (content.includes('<body')) {
-        content = content.replace('</body>', `${finalScripts}</body>`);
+        content = content.replace(/(<body[^>]*>)/i, `$1${globalHeader}`);
+        content = content.replace(/<\/body>/i, `${globalFooter}${finalScripts}</body>`);
     } else {
-        content = `<body>${content}${finalScripts}</body>`;
+        content = `<body>${globalHeader} ${content} ${globalFooter} ${finalScripts}</body>`;
     }
 
     return c.html(`
@@ -482,7 +532,7 @@ async function renderPage(c, page) {
     <head>
         <meta charset='UTF-8'>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${page.title}</title>
+        <title>${page.title} - ${siteName}</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <script>${tailwindConfig}</script>
         <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
