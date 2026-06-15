@@ -34,6 +34,11 @@
                     <span class="font-medium whitespace-nowrap">Halaman</span>
                 </a>
 
+                <a href="/admin/widgets" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+                    <i class="ph ph-puzzle-piece text-xl shrink-0"></i>
+                    <span class="font-medium whitespace-nowrap">Widget Library</span>
+                </a>
+
                 <a href="/admin/reports" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
                     <i class="ph ph-chart-line-up text-xl shrink-0"></i>
                     <span class="font-medium whitespace-nowrap">Laporan</span>
@@ -96,7 +101,7 @@
                                 <tr>
                                     <th class="p-4 w-24 text-center">Status</th>
                                     <th class="p-4">Judul / Slug</th>
-                                    <th class="p-4 w-32">Tipe Produk</th>
+                                    <th class="p-4 w-32">Tipe Halaman</th>
                                     <th class="p-4 w-32">Tanggal Dibuat</th>
                                     <th class="p-4 text-right w-40">Aksi</th>
                                 </tr>
@@ -127,8 +132,8 @@
                                         </td>
                                         <td class="p-4">
                                             <span class="px-2 py-1 rounded text-[10px] font-bold uppercase border whitespace-nowrap" 
-                                                  :class="p.product_type === 'digital' ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-green-100 text-green-700 border-green-200'"
-                                                  x-text="p.product_type"></span>
+                                                  :class="(p.slug || '').startsWith('portofolio-') ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-blue-100 text-blue-700 border-blue-200'"
+                                                  x-text="(p.slug || '').startsWith('portofolio-') ? 'Portfolio' : 'Halaman'"></span>
                                         </td>
                                         <td class="p-4 text-gray-500 whitespace-nowrap" x-text="new Date(p.created_at).toLocaleDateString('id-ID')"></td>
                                         
@@ -166,15 +171,16 @@
                         <input x-model="newPage.title" @input="generateSlug" placeholder="Promo Spesial" class="w-full border p-2.5 rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white outline-none focus:border-blue-500 transition">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">URL Slug</label>
-                        <input x-model="newPage.slug" class="w-full border p-2.5 rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white font-mono text-sm outline-none focus:border-blue-500 transition">
+                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Tipe Halaman</label>
+                        <select x-model="newPage.pageType" @change="generateSlug" class="w-full border p-2.5 rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white outline-none focus:border-blue-500 transition">
+                            <option value="normal">Halaman Normal</option>
+                            <option value="portfolio">Portfolio (Proyek Baru)</option>
+                        </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Tipe Produk</label>
-                        <select x-model="newPage.type" class="w-full border p-2.5 rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white outline-none">
-                            <option value="physical">Produk Fisik</option>
-                            <option value="digital">Produk Digital</option>
-                        </select>
+                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">URL Slug</label>
+                        <input x-model="newPage.slug" class="w-full border p-2.5 rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white font-mono text-sm outline-none focus:border-blue-500 transition">
+                        <p class="text-[10px] text-gray-400 mt-1" x-show="newPage.pageType === 'portfolio'">Sistem akan otomatis menambahkan prefiks "portofolio-" agar masuk ke daftar Grid Portfolio depan.</p>
                     </div>
                 </div>
                 <div class="flex justify-end gap-2 mt-6">
@@ -199,7 +205,7 @@
                 loading: true,
                 creating: false,
                 openCreate: false,
-                newPage: { slug: '', title: '', type: 'physical' },
+                newPage: { slug: '', title: '', pageType: 'normal' },
 
                 async init() {
                     const token = localStorage.getItem('admin_pass');
@@ -222,8 +228,22 @@
                     this.loading = false;
                 },
 
+                // LOGIC PENYESUAIAN SLUG OTOMATIS BERDASARKAN TIPE HALAMAN
                 generateSlug() {
-                    this.newPage.slug = this.newPage.title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-');
+                    let baseSlug = this.newPage.title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-');
+                    
+                    if (this.newPage.pageType === 'portfolio') {
+                        if (!baseSlug.startsWith('portofolio-')) {
+                            baseSlug = 'portofolio-' + baseSlug;
+                        }
+                    } else {
+                        // Jika diubah kembali ke normal, hapus prefiksnya
+                        if (baseSlug.startsWith('portofolio-')) {
+                            baseSlug = baseSlug.replace('portofolio-', '');
+                        }
+                    }
+                    
+                    this.newPage.slug = baseSlug;
                 },
 
                 async setHomepage(slug) {
@@ -237,7 +257,6 @@
                     if(res.ok) this.homepageSlug = slug;
                 },
 
-                // --- FUNGSI HAPUS HALAMAN ---
                 async deletePage(id) {
                     if(!confirm('Yakin ingin menghapus halaman ini selamanya? Tindakan ini tidak bisa dibatalkan.')) return;
                     
@@ -249,10 +268,10 @@
                         });
 
                         if(res.ok) {
-                            // Hapus dari list di frontend agar tidak perlu refresh
                             this.pages = this.pages.filter(p => p.id !== id);
                         } else {
-                            alert('Gagal menghapus halaman.');
+                            const err = await res.json();
+                            alert('Gagal menghapus halaman. ' + (err.error || ''));
                         }
                     } catch(e) {
                         alert('Terjadi kesalahan koneksi.');
@@ -263,16 +282,20 @@
                     if(!this.newPage.title) return;
                     this.creating = true;
                     const token = localStorage.getItem('admin_pass');
+                    
                     const res = await fetch('/api/admin/pages', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                         body: JSON.stringify({
-                            ...this.newPage,
+                            slug: this.newPage.slug,
+                            title: this.newPage.title,
+                            product_type: 'digital', // SELALU DI-SET DIGITAL SECARA OTOMATIS
                             html: '<section style="padding:50px; text-align:center"><h1>' + this.newPage.title + '</h1></section>',
                             css: '',
                             product_config: { variants: [] }
                         })
                     });
+                    
                     if(res.ok) window.location.href = '/admin/editor?slug=' + this.newPage.slug;
                     this.creating = false;
                 },
