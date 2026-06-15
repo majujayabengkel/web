@@ -239,25 +239,25 @@
 
                 // --- FUNGSI HAPUS HALAMAN ---
                 async deletePage(id) {
-                    if(!confirm('Yakin ingin menghapus halaman ini selamanya? Tindakan ini tidak bisa dibatalkan.')) return;
-                    
-                    const token = localStorage.getItem('admin_pass');
-                    try {
-                        const res = await fetch(`/api/admin/pages/${id}`, {
-                            method: 'DELETE',
-                            headers: { 'Authorization': `Bearer ${token}` }
-                        });
-
-                        if(res.ok) {
-                            // Hapus dari list di frontend agar tidak perlu refresh
-                            this.pages = this.pages.filter(p => p.id !== id);
-                        } else {
-                            alert('Gagal menghapus halaman.');
-                        }
-                    } catch(e) {
-                        alert('Terjadi kesalahan koneksi.');
+                if(!confirm('Yakin ingin menghapus halaman ini selamanya? Tindakan ini tidak bisa dibatalkan.')) return;
+                
+                const token = localStorage.getItem('admin_pass');
+                try {
+                    const res = await fetch(`/api/admin/pages/${id}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+            
+                    if(res.ok) {
+                        this.pages = this.pages.filter(p => p.id !== id);
+                    } else {
+                        const err = await res.json();
+                        alert('GAGAL: ' + (err.error || err.message || 'Terjadi kesalahan sistem'));
                     }
-                },
+                } catch(e) {
+                    alert('Terjadi kesalahan koneksi.');
+                }
+            }
 
                 async createPage() {
                     if(!this.newPage.title) return;
