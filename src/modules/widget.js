@@ -1,6 +1,6 @@
 // src/modules/widget.js
 
-const CACHE_KEY = 'widgets_library_v1';
+const CACHE_KEY = 'widgets_library_v2';
 const CACHE_TTL = 3600; // Cache 1 jam di KV
 
 // --- 1. GET (Read from KV -> Miss -> Read D1 -> Save KV) ---
