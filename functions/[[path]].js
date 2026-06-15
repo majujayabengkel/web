@@ -258,12 +258,19 @@ app.get('/api/admin/pages/:slug', async (c) => {
 });
 app.delete('/api/admin/pages/:id', async (c) => {
     try { 
-        const id = parseInt(c.req.param('id'), 10);
-        if (isNaN(id)) throw new Error("ID tidak valid");
+        const id = Number(c.req.param('id'));
+        
+        // 1. Hapus data relasi terlebih dahulu (Solusi Foreign Key Constraint)
+        await c.env.DB.prepare("DELETE FROM analytics WHERE page_id = ?").bind(id).run();
+        await c.env.DB.prepare("DELETE FROM transactions WHERE page_id = ?").bind(id).run();
+        await c.env.DB.prepare("DELETE FROM messages WHERE page_id = ?").bind(id).run();
+        
+        // 2. Setelah data anak bersih, baru hapus halaman utama
         await c.env.DB.prepare("DELETE FROM pages WHERE id = ?").bind(id).run(); 
+        
         return c.json({ success: true }); 
     } catch (e) { 
-        return c.json({ error: `D1 Error: ${e.message}` }, 500); 
+        return c.json({ error: e.message }, 500); 
     }
 });
 
