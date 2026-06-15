@@ -380,16 +380,26 @@
                 getIcon(p) { const icons = {'midtrans':'ph-credit-card','rajaongkir':'ph-truck','cloudinary':'ph-image','whatsapp':'ph-whatsapp-logo','paspay':'ph-qr-code'}; return icons[p] || 'ph-plugs-connected'; },
 
                 async changePassword() {
-                    if(!this.security.old_pass || !this.security.new_pass) return alert('Lengkapi form');
-                    if(this.security.new_pass !== this.security.confirm_pass) return alert('Konfirmasi beda');
-                    try {
-                        const res = await fetch('/api/admin/change-password', {
-                            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
-                            body: JSON.stringify({ current_password: this.security.old_pass, new_password: this.security.new_pass })
-                        });
-                        if(res.ok) { alert('Sukses! Login ulang.'); this.logout(); } else alert('Gagal.');
-                    } catch(e) { alert('Error koneksi'); }
-                },
+                if(!this.security.old_pass || !this.security.new_pass) return alert('Lengkapi form');
+                if(this.security.new_pass !== this.security.confirm_pass) return alert('Konfirmasi beda');
+                try {
+                    const res = await fetch('/api/admin/change-password', {
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
+                        body: JSON.stringify({ current_password: this.security.old_pass, new_password: this.security.new_pass })
+                    });
+                    const data = await res.json();
+                    
+                    if(res.ok) { 
+                        alert('Sukses! Silakan login ulang.'); 
+                        this.logout(); 
+                    } else { 
+                        alert('GAGAL: ' + (data.error || data.message || 'Terjadi kesalahan sistem')); 
+                    }
+                } catch(e) { 
+                    alert('Error koneksi'); 
+                }
+            }
 
                 async fetchTemplates() {
                     this.templates = [];
