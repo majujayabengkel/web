@@ -11,14 +11,15 @@ export const uploadImage = async (c) => {
         const credRow = await c.env.DB.prepare("SELECT * FROM credentials WHERE provider_slug = 'cloudinary'").first();
         
         if (!credRow) {
-            return c.json({ success: false, message: "Cloudinary belum dikonfigurasi di Database." }, 500);
+            return c.json({ error: "Cloudinary belum dikonfigurasi di Database." }, 400);
         }
 
-        const secretKey = c.env.APP_MASTER_KEY || FALLBACK_SECRET;
+        // PERBAIKAN FATAL: Menyamakan pembacaan secret key dengan environment variable JWT_SECRET
+        const secretKey = c.env.JWT_SECRET || c.env.APP_MASTER_KEY || FALLBACK_SECRET;
         const config = await decryptJSON(credRow.encrypted_data, credRow.iv, secretKey);
         
         if (!config || !config.cloud_name || !config.api_key || !config.api_secret) {
-            return c.json({ success: false, message: "Kredensial Cloudinary rusak/tidak lengkap." }, 400);
+            return c.json({ error: "Kredensial Cloudinary gagal dibaca. Silakan BUKA MENU SETTINGS lalu SIMPAN ULANG kredensial Cloudinary Anda!" }, 400);
         }
 
         const { cloud_name, api_key, api_secret } = config;
@@ -68,11 +69,11 @@ export const uploadImage = async (c) => {
             });
         } else {
             console.error("Cloudinary Error:", json);
-            throw new Error(json.error?.message || "Cloudinary Upload Failed");
+            return c.json({ error: json.error?.message || "Cloudinary Upload Failed" }, 400);
         }
 
     } catch (e) {
         console.error("Upload Error:", e);
-        return c.json({ success: false, message: e.message }, 500);
+        return c.json({ error: e.message }, 500);
     }
 };
