@@ -206,6 +206,17 @@
                      <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Meta Title</label><input x-model="page.config.settings.seo_title" class="w-full px-4 py-2.5 bg-gray-50 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"></div>
                      <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Meta Description</label><textarea x-model="page.config.settings.seo_desc" class="w-full px-4 py-2.5 bg-gray-50 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none h-24 resize-none"></textarea></div>
                      <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Favicon URL</label><div class="flex gap-2"><input x-model="page.config.settings.favicon" class="flex-1 px-4 py-2.5 bg-gray-50 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"><img :src="page.config.settings.favicon" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0iI2VlZSI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIi8+PC9zdmc+'" class="w-10 h-10 rounded border bg-gray-100 object-contain"></div></div>
+                    <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Featured Image (Thumbnail Share)</label>
+                    <div class="flex gap-2">
+                        <input x-model="page.config.settings.seo_image" placeholder="https://domain.com/gambar.jpg" class="flex-1 px-4 py-2.5 bg-gray-50 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div class="mt-2 w-full h-32 bg-gray-100 border border-gray-200 rounded-lg overflow-hidden relative flex items-center justify-center">
+                        <span x-show="!page.config.settings.seo_image" class="text-xs text-gray-400 font-medium"><i class="ph ph-image text-xl mb-1 block text-center"></i> Belum ada thumbnail</span>
+                        <img x-show="page.config.settings.seo_image" :src="page.config.settings.seo_image" class="w-full h-full object-cover" onerror="this.style.display='none'">
+                    </div>
+                    <p class="text-[10px] text-gray-400 mt-1">Gambar ini akan muncul saat halaman dibagikan ke WhatsApp, Facebook, atau X.</p>
+                </div>
                 </div>
                 <div x-show="settingsTab === 'advanced'" class="space-y-5 animate-fade-in">
                     <div class="p-3 bg-blue-50 text-blue-700 text-xs rounded-lg border border-blue-100"><i class="ph ph-info"></i> Masukkan kode tracking (Pixel, GTM) di sini.</div>
