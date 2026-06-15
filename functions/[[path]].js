@@ -396,9 +396,8 @@ app.post('/api/public/checkout', async (c) => {
 
 app.get('/api/public/portfolios', async (c) => {
     try {
-        // Mengambil daftar halaman yang di-set sebagai 'portfolio'
-        // Kita juga mengambil product_config_json untuk mengekstrak URL gambar cover (jika ada)
-        const r = await c.env.DB.prepare("SELECT slug, title, product_config_json, created_at FROM pages WHERE product_type = 'portfolio' ORDER BY created_at DESC").all();
+        // Ambil SEMUA halaman yang slug-nya berawalan "portofolio-"
+        const r = await c.env.DB.prepare("SELECT slug, title, product_config_json, created_at FROM pages WHERE slug LIKE 'portofolio-%' ORDER BY created_at DESC").all();
         
         return c.json({ success: true, data: r.results });
     } catch (e) { 
