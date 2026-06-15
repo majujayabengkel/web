@@ -7,9 +7,6 @@ import { uploadImage } from '../src/modules/cloudinary'
 import * as widgetModule from '../src/modules/widget'
 
 const app = new Hono()
-const JWT_SECRET = 'BantarCaringin1BantarCaringin2BantarCaringin3'
-const RELAY_URL = "https://pasdigi-relay.hf.space/proxy";
-const RELAY_SECRET = "BantarCaringin1";
 
 // --- HELPERS ---
 const trackVisit = (c, page, referrer) => {
@@ -56,16 +53,16 @@ async function executeGenericAPI(c, type, slug, payload) {
 
     let creds;
     try {
-        const secret = c.env.APP_MASTER_KEY || JWT_SECRET;
+        const secret = c.env.JWT_SECRET || c.env.APP_MASTER_KEY;
         const decrypted = await decryptJSON(credRow.encrypted_data, credRow.iv, secret);
         creds = typeof decrypted === 'string' ? JSON.parse(decrypted) : decrypted;
     } catch (e) { throw new Error("Gagal dekripsi kredensial."); }
 
     let extraHeaders = {};
     if (slug.includes('flashpay')) {
-        const authRes = await fetch(RELAY_URL, {
+        const authRes = await fetch(c.env.RELAY_URL, {
             method: 'POST',
-            headers: { "Content-Type": "application/json", "x-relay-auth": RELAY_SECRET },
+            headers: { "Content-Type": "application/json", "x-relay-auth": c.env.RELAY_SECRET },
             body: JSON.stringify({
                 target_url: "https://sandbox-secure.flashmobile.id/auth/v2/access-token",
                 target_method: "POST",
@@ -107,9 +104,9 @@ async function executeGenericAPI(c, type, slug, payload) {
 
     let res;
     if (slug.includes('flashpay')) {
-        res = await fetch(RELAY_URL, {
+        res = await fetch(c.env.RELAY_URL, {
             method: 'POST',
-            headers: { "Content-Type": "application/json", "X-Relay-Secret": RELAY_SECRET },
+            headers: { "Content-Type": "application/json", "X-Relay-Secret": c.env.RELAY_SECRET },
             body: JSON.stringify({ target_url: template.api_endpoint, target_method: template.method || 'POST', target_headers: headersFinal, target_payload: JSON.parse(bodyFinal) })
         });
     } else {
@@ -160,7 +157,7 @@ const requireAuth = async (c, next) => {
     }
 
     try {
-        const secret = c.env.APP_MASTER_KEY || JWT_SECRET;
+        const secret = c.env.JWT_SECRET || c.env.APP_MASTER_KEY;
         const payload = await verify(token, secret, 'HS256');
         c.set('user', payload);
         await next(); 
@@ -182,7 +179,7 @@ app.post('/api/login', async (c) => {
         const inputHash = await sha256(password);
         if (user.password !== inputHash && user.password !== password) return c.json({ success: false, message: 'Password salah' }, 401);
         
-        const secret = c.env.APP_MASTER_KEY || JWT_SECRET;
+        const secret = c.env.JWT_SECRET || c.env.APP_MASTER_KEY;
         const token = await sign({ id: user.id, email: user.email, role: user.role, exp: Math.floor(Date.now() / 1000) + 86400 }, secret, 'HS256');
         setCookie(c, 'auth_token', token, { path: '/', secure: true, httpOnly: true, maxAge: 86400, sameSite: 'Lax' });
         return c.json({ success: true, token });
@@ -198,8 +195,24 @@ app.post('/api/setup-first-user', async (c) => {
     } catch (e) { return c.json({ success: false, error: e.message }); }
 });
 
+app.post('/api/admin/change-password', async (c) => {
+    try {
+        const { current_password, new_password } = await c.req.json();
+        const user = c.get('user');
+        const dbUser = await c.env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(user.id).first();
+        if (!dbUser) return c.json({ success: false, message: 'User tidak ditemukan' }, 404);
+        const inputHash = await sha256(current_password);
+        if (dbUser.password !== inputHash && dbUser.password !== current_password) {
+            return c.json({ success: false, message: 'Password lama salah' }, 400);
+        }
+        const newHash = await sha256(new_password);
+        await c.env.DB.prepare("UPDATE users SET password = ? WHERE id = ?").bind(newHash, user.id).run();
+        return c.json({ success: true, message: 'Password berhasil diubah' });
+    } catch(e) { return c.json({ success: false, error: e.message }, 500); }
+});
+
 app.get('/api/internal/rekap-analytics', async (c) => {
-    if (c.req.header('x-cron-secret') !== "BantarCaringin1") return c.json({ success: false, message: "Kunci Salah!" }, 401);
+    if (c.req.header('x-cron-secret') !== c.env.CRON_SECRET) return c.json({ success: false, message: "Kunci Salah!" }, 401);
     try {
         await runAnalyticsRekap(c.env);
         return c.json({ success: true, message: "Rekap Berhasil!" });
@@ -235,7 +248,7 @@ app.get('/api/admin/pages/:slug', async (c) => {
     return c.json(page || {});
 });
 app.delete('/api/admin/pages/:id', async (c) => {
-    try { await c.env.DB.prepare("DELETE FROM pages WHERE id = ?").bind(c.req.param('id')).run(); return c.json({ success: true }); } catch (e) { return c.json({ error: e.message }, 500); }
+    try { await c.env.DB.prepare("DELETE FROM pages WHERE id = ?").bind(Number(c.req.param('id'))).run(); return c.json({ success: true }); } catch (e) { return c.json({ error: e.message }, 500); }
 });
 
 const WIDGET_CACHE_KEY = 'widgets_data_full';
@@ -271,8 +284,8 @@ app.delete('/api/admin/cache/widgets', async (c) => {
 });
 
 app.get('/api/admin/messages', async (c) => { try { const r = await c.env.DB.prepare("SELECT * FROM messages ORDER BY created_at DESC LIMIT 100").all(); return c.json(r.results); } catch (e) { return c.json({ error: e.message }, 500); } });
-app.patch('/api/admin/messages/:id', async (c) => { try { await c.env.DB.prepare("UPDATE messages SET status = ? WHERE id = ?").bind((await c.req.json()).status, c.req.param('id')).run(); return c.json({ success: true }); } catch (e) { return c.json({ error: e.message }, 500); } });
-app.delete('/api/admin/messages/:id', async (c) => { try { await c.env.DB.prepare("DELETE FROM messages WHERE id = ?").bind(c.req.param('id')).run(); return c.json({ success: true }); } catch (e) { return c.json({ error: e.message }, 500); } });
+app.patch('/api/admin/messages/:id', async (c) => { try { await c.env.DB.prepare("UPDATE messages SET status = ? WHERE id = ?").bind((await c.req.json()).status, Number(c.req.param('id'))).run(); return c.json({ success: true }); } catch (e) { return c.json({ error: e.message }, 500); } });
+app.delete('/api/admin/messages/:id', async (c) => { try { await c.env.DB.prepare("DELETE FROM messages WHERE id = ?").bind(Number(c.req.param('id'))).run(); return c.json({ success: true }); } catch (e) { return c.json({ error: e.message }, 500); } });
 
 app.get('/api/admin/analytics/data', async (c) => {
     try {
@@ -292,7 +305,7 @@ app.get('/api/admin/reports', async (c) => {
 
 app.post('/api/admin/credentials', async (c) => {
     const { provider, data } = await c.req.json();
-    const { encrypted, iv } = await encryptJSON(data, c.env.APP_MASTER_KEY || JWT_SECRET);
+    const { encrypted, iv } = await encryptJSON(data, c.env.JWT_SECRET || c.env.APP_MASTER_KEY);
     await c.env.DB.prepare(`INSERT INTO credentials (provider_slug, encrypted_data, iv) VALUES (?, ?, ?) ON CONFLICT(provider_slug) DO UPDATE SET encrypted_data=excluded.encrypted_data, iv=excluded.iv`).bind(provider, encrypted, iv).run();
     return c.json({ success: true });
 });
@@ -352,30 +365,21 @@ async function renderPage(c, page) {
     let widgetScripts = '';
     try {
         const widgets = await widgetModule.getWidgets(c.env);
-        // Kita buat map: ID Widget -> Fungsi Javascript-nya
         const scriptMap = widgets
             .filter(w => w.script && w.script.trim() !== '')
             .map(w => `"${w.id}": function() { ${w.script} }`)
             .join(',');
 
-        // 2. BUILD SCRIPT HYDRATOR
-        // Script ini akan berjalan di browser pengunjung
         widgetScripts = `
         <script>
             (function() {
-                // Registry berisi logika semua widget yang ada di DB
                 const widgetRegistry = { ${scriptMap} };
-
                 document.addEventListener("DOMContentLoaded", function() {
-                    // Cari semua elemen yang punya atribut 'data-widget-type'
                     const components = document.querySelectorAll('[data-widget-type]');
-                    
                     components.forEach(el => {
                         const type = el.getAttribute('data-widget-type');
                         if (widgetRegistry[type]) {
                             try {
-                                // JALANKAN LOGIC WIDGET
-                                // 'this' di dalam fungsi widget akan mengacu ke 'el' (elemen HTML nya)
                                 widgetRegistry[type].call(el);
                             } catch(e) { console.error("Widget Error ["+type+"]:", e); }
                         }
@@ -396,7 +400,6 @@ async function renderPage(c, page) {
         // Checkout Logic Sederhana
         document.addEventListener('DOMContentLoaded', () => {
             if (document.body.innerHTML.includes('[ CHECKOUT ]')) {
-                // ... (Kode checkout standar Anda disini) ...
                 console.log("Checkout module loaded");
             }
         });
@@ -405,8 +408,6 @@ async function renderPage(c, page) {
 
     // 4. Gabungkan Content
     let content = page.html_content || '';
-    
-    // Inject Script sebelum </body>
     const finalScripts = `${widgetScripts}${systemScripts}`;
     if (content.includes('<body')) {
         content = content.replace('</body>', `${finalScripts}</body>`);
