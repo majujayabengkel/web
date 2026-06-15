@@ -197,18 +197,27 @@ app.post('/api/setup-first-user', async (c) => {
 
 app.post('/api/admin/change-password', async (c) => {
     try {
-        const { current_password, new_password } = await c.req.json();
+        const body = await c.req.json();
         const user = c.get('user');
-        const dbUser = await c.env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(user.id).first();
+        
+        // Pastikan sesi user ID masih ada (jika token kadaluarsa bentuk lama)
+        if (!user || !user.id) return c.json({ success: false, message: 'Sesi tidak valid, harap login ulang' }, 401);
+        
+        const userId = parseInt(user.id, 10);
+        const dbUser = await c.env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(userId).first();
         if (!dbUser) return c.json({ success: false, message: 'User tidak ditemukan' }, 404);
-        const inputHash = await sha256(current_password);
-        if (dbUser.password !== inputHash && dbUser.password !== current_password) {
+        
+        const inputHash = await sha256(body.current_password);
+        if (dbUser.password !== inputHash && dbUser.password !== body.current_password) {
             return c.json({ success: false, message: 'Password lama salah' }, 400);
         }
-        const newHash = await sha256(new_password);
-        await c.env.DB.prepare("UPDATE users SET password = ? WHERE id = ?").bind(newHash, user.id).run();
+        
+        const newHash = await sha256(body.new_password);
+        await c.env.DB.prepare("UPDATE users SET password = ? WHERE id = ?").bind(newHash, userId).run();
         return c.json({ success: true, message: 'Password berhasil diubah' });
-    } catch(e) { return c.json({ success: false, error: e.message }, 500); }
+    } catch(e) { 
+        return c.json({ success: false, error: `D1 Error: ${e.message}` }, 500); 
+    }
 });
 
 app.get('/api/internal/rekap-analytics', async (c) => {
@@ -248,7 +257,14 @@ app.get('/api/admin/pages/:slug', async (c) => {
     return c.json(page || {});
 });
 app.delete('/api/admin/pages/:id', async (c) => {
-    try { await c.env.DB.prepare("DELETE FROM pages WHERE id = ?").bind(Number(c.req.param('id'))).run(); return c.json({ success: true }); } catch (e) { return c.json({ error: e.message }, 500); }
+    try { 
+        const id = parseInt(c.req.param('id'), 10);
+        if (isNaN(id)) throw new Error("ID tidak valid");
+        await c.env.DB.prepare("DELETE FROM pages WHERE id = ?").bind(id).run(); 
+        return c.json({ success: true }); 
+    } catch (e) { 
+        return c.json({ error: `D1 Error: ${e.message}` }, 500); 
+    }
 });
 
 const WIDGET_CACHE_KEY = 'widgets_data_full';
@@ -284,9 +300,26 @@ app.delete('/api/admin/cache/widgets', async (c) => {
 });
 
 app.get('/api/admin/messages', async (c) => { try { const r = await c.env.DB.prepare("SELECT * FROM messages ORDER BY created_at DESC LIMIT 100").all(); return c.json(r.results); } catch (e) { return c.json({ error: e.message }, 500); } });
-app.patch('/api/admin/messages/:id', async (c) => { try { await c.env.DB.prepare("UPDATE messages SET status = ? WHERE id = ?").bind((await c.req.json()).status, Number(c.req.param('id'))).run(); return c.json({ success: true }); } catch (e) { return c.json({ error: e.message }, 500); } });
-app.delete('/api/admin/messages/:id', async (c) => { try { await c.env.DB.prepare("DELETE FROM messages WHERE id = ?").bind(Number(c.req.param('id'))).run(); return c.json({ success: true }); } catch (e) { return c.json({ error: e.message }, 500); } });
+app.patch('/api/admin/messages/:id', async (c) => { 
+    try { 
+        const id = parseInt(c.req.param('id'), 10);
+        const { status } = await c.req.json();
+        await c.env.DB.prepare("UPDATE messages SET status = ? WHERE id = ?").bind(status, id).run(); 
+        return c.json({ success: true }); 
+    } catch (e) { 
+        return c.json({ error: `D1 Error: ${e.message}` }, 500); 
+    } 
+});
 
+app.delete('/api/admin/messages/:id', async (c) => { 
+    try { 
+        const id = parseInt(c.req.param('id'), 10);
+        await c.env.DB.prepare("DELETE FROM messages WHERE id = ?").bind(id).run(); 
+        return c.json({ success: true }); 
+    } catch (e) { 
+        return c.json({ error: `D1 Error: ${e.message}` }, 500); 
+    } 
+});
 app.get('/api/admin/analytics/data', async (c) => {
     try {
         const stats = await c.env.DB.prepare(`SELECT SUM(views) as total_views, SUM(CASE WHEN date(created_at) = date('now') THEN views ELSE 0 END) as today_views FROM analytics_rekap`).first();
