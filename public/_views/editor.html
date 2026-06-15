@@ -243,9 +243,9 @@
                 isUploadingSeo = true;
                 const formData = new FormData();
                 formData.append('file', file);
+                formData.append('filename', file.name);
                 
                 try {
-                    // Script mengirim file ke module upload internal Anda
                     const res = await fetch('/api/admin/upload-image', { 
                         method: 'POST', 
                         body: formData 
@@ -253,18 +253,20 @@
                     
                     const data = await res.json();
                     
-                    if (data.success && data.url) {
-                        // Masukkan URL Cloudinary ke dalam JSON setting halaman
-                        page.config.settings.seo_image = data.url;
+                    // PERBAIKAN: Cara membaca URL disamakan dengan modul GrapesJS
+                    const finalUrl = data.data ? data.data[0].src : (data.url || data.secure_url);
+                    
+                    if (finalUrl) {
+                        page.config.settings.seo_image = finalUrl;
                     } else {
-                        alert('Gagal mengunggah gambar: ' + (data.message || 'Error internal'));
+                        alert('Gagal membaca URL gambar dari server.');
                     }
                 } catch(err) {
                     console.error(err);
                     alert('Terjadi kesalahan koneksi saat upload!');
                 } finally {
                     isUploadingSeo = false;
-                    e.target.value = ''; // Reset input agar bisa upload gambar yang sama jika perlu
+                    e.target.value = ''; 
                 }
             }">
     </div>
