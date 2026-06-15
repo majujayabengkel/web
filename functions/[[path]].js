@@ -256,6 +256,7 @@ app.get('/api/admin/pages/:slug', async (c) => {
     if(page) page.product_config_json = JSON.parse(page.product_config_json || '{}');
     return c.json(page || {});
 });
+
 app.delete('/api/admin/pages/:id', async (c) => {
     try { 
         const id = Number(c.req.param('id'));
