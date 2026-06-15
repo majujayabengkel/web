@@ -354,11 +354,32 @@ app.delete('/api/admin/templates', async (c) => { const t = c.req.query('type') 
 
 // --- PUBLIC API ---
 
-// ENDPOINT MENGAMBIL DATA PORTOFOLIO DARI DATABASE
+// ENDPOINT MENGAMBIL DATA PORTOFOLIO DARI DATABASE (AUTO-EKSTRAK GAMBAR)
 app.get('/api/public/portfolios', async (c) => {
     try {
-        const r = await c.env.DB.prepare("SELECT slug, title, product_config_json, created_at FROM pages WHERE slug LIKE 'portofolio-%' ORDER BY created_at DESC").all();
-        return c.json({ success: true, data: r.results });
+        // Ambil data termasuk html_content
+        const r = await c.env.DB.prepare("SELECT slug, title, html_content, product_config_json, created_at FROM pages WHERE slug LIKE 'portofolio-%' ORDER BY created_at DESC").all();
+        
+        // Ekstrak link gambar pertama dari dalam html_content secara otomatis
+        const dataWithImages = r.results.map(item => {
+            let coverImage = null;
+            if (item.html_content) {
+                // Regex cerdas untuk mencari tag <img src="URL">
+                const imgMatch = item.html_content.match(/<img[^>]+src=["']([^"']+)["']/i);
+                if (imgMatch && imgMatch[1]) {
+                    coverImage = imgMatch[1];
+                }
+            }
+            return {
+                slug: item.slug,
+                title: item.title,
+                cover_image: coverImage, // Kirim gambar yang ditemukan ke frontend!
+                product_config_json: item.product_config_json,
+                created_at: item.created_at
+            };
+        });
+        
+        return c.json({ success: true, data: dataWithImages });
     } catch (e) { 
         return c.json({ success: false, error: e.message }, 500); 
     }
