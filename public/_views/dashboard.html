@@ -62,7 +62,7 @@
                         if (res.ok) {
                             const data = await res.json();
                             this.stats.total = data.length;
-                            this.stats.portfolio = data.filter(p => p.slug && p.slug.toLowerCase().includes('portfolio-')).length;
+                            this.stats.portfolio = data.filter(p => p.slug && p.slug.toLowerCase().includes('portofolio-')).length;
                             this.stats.general = this.stats.total - this.stats.portfolio;
                         }
                     } catch (e) { console.error("Gagal:", e); }
