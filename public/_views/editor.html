@@ -246,7 +246,7 @@
                 
                 try {
                     // Script mengirim file ke module upload internal Anda
-                    const res = await fetch('/api/upload-image', { 
+                    const res = await fetch('/api/admin/upload-image', { 
                         method: 'POST', 
                         body: formData 
                     });
