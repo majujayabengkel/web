@@ -59,8 +59,6 @@ class AdminLayout extends HTMLElement {
                     <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
                         ${this.link('/admin/dashboard', 'ph-squares-four', 'Dashboard')}
                         ${this.link('/admin/pages', 'ph-files', 'Halaman')}
-                        ${this.link('/admin/reports', 'ph-chart-line-up', 'Laporan')}
-                        ${this.link('/admin/analytics', 'ph-trend-up', 'Traffic')}
                         ${this.link('/admin/settings', 'ph-gear', 'Settings')}
                     </nav>
 
