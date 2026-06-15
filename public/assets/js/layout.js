@@ -100,7 +100,6 @@ class AdminLayout extends HTMLElement {
         // Re-inisialisasi AlpineJS agar x-data di dalam konten terbaca
         setTimeout(() => {
             if (window.Alpine) {
-                window.Alpine.discover(); // Cari directive baru
                 window.Alpine.initTree(this); // Inisialisasi tree layout ini
             }
         }, 100);
